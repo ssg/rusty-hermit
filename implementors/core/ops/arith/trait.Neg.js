@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["time"] = [{"text":"impl Neg for <a class=\"struct\" href=\"time/struct.Duration.html\" title=\"struct time::Duration\">Duration</a>","synthetic":false,"types":["time::duration::Duration"]},{"text":"impl Neg for <a class=\"struct\" href=\"time/struct.UtcOffset.html\" title=\"struct time::UtcOffset\">UtcOffset</a>","synthetic":false,"types":["time::utc_offset::UtcOffset"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

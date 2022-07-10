@@ -77,6 +77,8 @@ extern "C" {
 pub enum NetworkError {
 	/// A parameter was incorrect.
 	InvalidInput,
+	/// The socket is invalid
+	InvalidSocket,
 	/// The connection was refused by the remote server.
 	ConnectionRefused,
 	/// The operation needs to block to complete,
@@ -91,6 +93,10 @@ pub enum NetworkError {
 	/// A custom error that does not fall under any other network error kind.
 	Other,
 }
+
+/// A handle, identifying a socket
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct Socket(usize);
 
 /// A thread handle type
 pub type Tid = u32;
@@ -115,10 +121,6 @@ impl Priority {
 pub const HIGH_PRIO: Priority = Priority::from(3);
 pub const NORMAL_PRIO: Priority = Priority::from(2);
 pub const LOW_PRIO: Priority = Priority::from(1);
-
-/// A handle, identifying a socket
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-pub struct Handle(usize);
 
 pub const NSEC_PER_SEC: u64 = 1_000_000_000;
 pub const CLOCK_REALTIME: u64 = 1;

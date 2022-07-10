@@ -5,6 +5,7 @@ mod waker;
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::_rdtsc;
+use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -35,6 +36,46 @@ use crate::net::executor::{block_on, block_with_timeout_on, poll_on, spawn};
 use crate::net::mutex::Mutex;
 use crate::net::waker::WakerRegistration;
 
+/// Type of a socket
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum SocketType {
+	/// TCP socket
+	Tcp,
+	/// UDP socket
+	Udp,
+}
+
+impl Default for SocketType {
+	fn default() -> Self {
+		SocketType::Tcp
+	}
+}
+
+/// used to modify and query data from OS Sockets
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SocketInfo {
+	pub socket_type: SocketType,
+	pub non_blocking: bool,
+}
+
+impl SocketInfo {
+	pub fn new(socket_type: SocketType, non_blocking: bool) -> Self {
+		Self {
+			socket_type,
+			non_blocking,
+		}
+	}
+}
+
+impl Default for SocketInfo {
+	fn default() -> Self {
+		Self {
+			socket_type: SocketType::default(),
+			non_blocking: false,
+		}
+	}
+}
+
 pub(crate) enum NetworkState {
 	Missing,
 	InitializationFailed,
@@ -52,6 +93,7 @@ impl NetworkState {
 
 lazy_static! {
 	static ref NIC: Mutex<NetworkState> = Mutex::new(NetworkState::Missing);
+	static ref SOCKET_MAP: Mutex<HashMap<Handle, SocketInfo>> = Mutex::new(HashMap::new());
 }
 
 extern "C" {
@@ -93,6 +135,10 @@ where
 		let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 65535]);
 		let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
 		let tcp_handle = self.iface.add_socket(tcp_socket);
+
+		SOCKET_MAP
+			.lock()
+			.insert(tcp_handle, SocketInfo::new(SocketType::Tcp, false));
 
 		Ok(tcp_handle)
 	}
@@ -434,14 +480,28 @@ pub fn sys_tcp_stream_connect(
 	)
 }
 
+/// makes the socket non_blocking
 #[no_mangle]
-pub fn sys_tcp_stream_read(
+pub fn sys_tcp_stream_set_non_blocking(
 	handle: Handle,
-	buffer: &mut [u8],
-	blocking: bool,
-) -> Result<usize, NetworkError> {
+	non_blocking: bool,
+) -> Result<(), NetworkError> {
+	let mut guard = SOCKET_MAP.lock();
+	let socket_info = guard.get_mut(&handle).ok_or(NetworkError::InvalidSocket)?;
+	socket_info.non_blocking = non_blocking;
+
+	Ok(())
+}
+
+#[no_mangle]
+pub fn sys_tcp_stream_read(handle: Handle, buffer: &mut [u8]) -> Result<usize, NetworkError> {
 	let socket = AsyncSocket::from(handle);
-	if blocking {
+	let info = *SOCKET_MAP
+		.lock()
+		.get(&handle)
+		.ok_or(NetworkError::InvalidSocket)?;
+
+	if !info.non_blocking {
 		block_on(socket.read(buffer))
 	} else {
 		poll_on(socket.read(buffer), Err(NetworkError::WouldBlock))
@@ -449,14 +509,14 @@ pub fn sys_tcp_stream_read(
 }
 
 #[no_mangle]
-pub fn sys_tcp_stream_write(
-	handle: Handle,
-	buffer: &[u8],
-	blocking: bool,
-) -> Result<usize, NetworkError> {
+pub fn sys_tcp_stream_write(handle: Handle, buffer: &[u8]) -> Result<usize, NetworkError> {
 	let socket = AsyncSocket::from(handle);
+	let info = *SOCKET_MAP
+		.lock()
+		.get(&handle)
+		.ok_or(NetworkError::InvalidSocket)?;
 
-	if blocking {
+	if !info.non_blocking {
 		block_on(socket.write(buffer))
 	} else {
 		poll_on(socket.write(buffer), Err(NetworkError::WouldBlock))

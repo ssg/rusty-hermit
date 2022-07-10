@@ -1,95 +1,91 @@
 //! `tcpstream` provide an interface to establish tcp socket client.
 
-use crate::{Handle, IpAddress, NetworkError};
+use crate::{IpAddress, NetworkError, Socket};
 
 extern "Rust" {
 	fn sys_tcp_stream_connect(
 		ip: &[u8],
 		port: u16,
 		timeout: Option<u64>,
-	) -> Result<Handle, NetworkError>;
-	fn sys_tcp_stream_close(handle: Handle) -> Result<(), NetworkError>;
-	fn sys_tcp_stream_read(
-		handle: Handle,
-		buffer: &mut [u8],
-		blocking: bool,
-	) -> Result<usize, NetworkError>;
-	fn sys_tcp_stream_write(
-		handle: Handle,
-		buffer: &[u8],
-		blocking: bool,
-	) -> Result<usize, NetworkError>;
+	) -> Result<Socket, NetworkError>;
+	fn sys_tcp_stream_close(socket: Socket) -> Result<(), NetworkError>;
+	fn sys_tcp_stream_read(socket: Socket, buffer: &mut [u8]) -> Result<usize, NetworkError>;
+	fn sys_tcp_stream_write(socket: Socket, buffer: &[u8]) -> Result<usize, NetworkError>;
 	fn sys_tcp_stream_set_read_timeout(
-		handle: Handle,
+		socket: Socket,
 		timeout: Option<u64>,
 	) -> Result<(), NetworkError>;
-	fn sys_tcp_stream_get_read_timeout(handle: Handle) -> Result<Option<u64>, NetworkError>;
+	fn sys_tcp_stream_get_read_timeout(socket: Socket) -> Result<Option<u64>, NetworkError>;
 	fn sys_tcp_stream_set_write_timeout(
-		handle: Handle,
+		socket: Socket,
 		timeout: Option<u64>,
 	) -> Result<(), NetworkError>;
-	fn sys_tcp_stream_get_write_timeout(handle: Handle) -> Result<Option<u64>, NetworkError>;
-	fn sys_tcp_stream_peek(handle: Handle, buf: &mut [u8]) -> Result<usize, NetworkError>;
-	fn sys_tcp_stream_set_tll(handle: Handle, ttl: u32) -> Result<(), NetworkError>;
-	fn sys_tcp_stream_get_tll(handle: Handle) -> Result<u32, NetworkError>;
-	fn sys_tcp_stream_shutdown(handle: Handle, how: i32) -> Result<(), NetworkError>;
-	fn sys_tcp_stream_peer_addr(handle: Handle) -> Result<(IpAddress, u16), NetworkError>;
+	fn sys_tcp_stream_get_write_timeout(socket: Socket) -> Result<Option<u64>, NetworkError>;
+	fn sys_tcp_stream_peek(socket: Socket, buf: &mut [u8]) -> Result<usize, NetworkError>;
+	fn sys_tcp_stream_set_tll(socket: Socket, ttl: u32) -> Result<(), NetworkError>;
+	fn sys_tcp_stream_get_tll(socket: Socket) -> Result<u32, NetworkError>;
+	fn sys_tcp_stream_shutdown(socket: Socket, how: i32) -> Result<(), NetworkError>;
+	fn sys_tcp_stream_peer_addr(socket: Socket) -> Result<(IpAddress, u16), NetworkError>;
+	fn sys_tcp_stream_set_non_blocking(
+		socket: Socket,
+		non_blocking: bool,
+	) -> Result<(), NetworkError>;
 }
 
 /// Opens a TCP connection to a remote host.
 #[inline(always)]
-pub fn connect(ip: &[u8], port: u16, timeout: Option<u64>) -> Result<Handle, NetworkError> {
+pub fn connect(ip: &[u8], port: u16, timeout: Option<u64>) -> Result<Socket, NetworkError> {
 	unsafe { sys_tcp_stream_connect(ip, port, timeout) }
 }
 
 /// Close a TCP connection
 #[inline(always)]
-pub fn close(handle: Handle) -> Result<(), NetworkError> {
-	unsafe { sys_tcp_stream_close(handle) }
+pub fn close(socket: Socket) -> Result<(), NetworkError> {
+	unsafe { sys_tcp_stream_close(socket) }
 }
 
 #[inline(always)]
-pub fn peek(handle: Handle, buf: &mut [u8]) -> Result<usize, NetworkError> {
-	unsafe { sys_tcp_stream_peek(handle, buf) }
+pub fn peek(socket: Socket, buf: &mut [u8]) -> Result<usize, NetworkError> {
+	unsafe { sys_tcp_stream_peek(socket, buf) }
 }
 
 #[inline(always)]
-pub fn peer_addr(handle: Handle) -> Result<(IpAddress, u16), NetworkError> {
-	unsafe { sys_tcp_stream_peer_addr(handle) }
+pub fn peer_addr(socket: Socket) -> Result<(IpAddress, u16), NetworkError> {
+	unsafe { sys_tcp_stream_peer_addr(socket) }
 }
 
 #[inline(always)]
-pub fn read(handle: Handle, buffer: &mut [u8], blocking: bool) -> Result<usize, NetworkError> {
-	unsafe { sys_tcp_stream_read(handle, buffer, blocking) }
+pub fn read(socket: Socket, buffer: &mut [u8]) -> Result<usize, NetworkError> {
+	unsafe { sys_tcp_stream_read(socket, buffer) }
 }
 
 #[inline(always)]
-pub fn write(handle: Handle, buffer: &[u8], blocking: bool) -> Result<usize, NetworkError> {
-	unsafe { sys_tcp_stream_write(handle, buffer, blocking) }
+pub fn write(socket: Socket, buffer: &[u8]) -> Result<usize, NetworkError> {
+	unsafe { sys_tcp_stream_write(socket, buffer) }
 }
 
 #[inline(always)]
-pub fn set_read_timeout(handle: Handle, timeout: Option<u64>) -> Result<(), NetworkError> {
-	unsafe { sys_tcp_stream_set_read_timeout(handle, timeout) }
+pub fn set_read_timeout(socket: Socket, timeout: Option<u64>) -> Result<(), NetworkError> {
+	unsafe { sys_tcp_stream_set_read_timeout(socket, timeout) }
 }
 
 #[inline(always)]
-pub fn set_write_timeout(handle: Handle, timeout: Option<u64>) -> Result<(), NetworkError> {
-	unsafe { sys_tcp_stream_set_write_timeout(handle, timeout) }
+pub fn set_write_timeout(socket: Socket, timeout: Option<u64>) -> Result<(), NetworkError> {
+	unsafe { sys_tcp_stream_set_write_timeout(socket, timeout) }
 }
 
 #[inline(always)]
-pub fn get_read_timeout(handle: Handle) -> Result<Option<u64>, NetworkError> {
-	unsafe { sys_tcp_stream_get_read_timeout(handle) }
+pub fn get_read_timeout(socket: Socket) -> Result<Option<u64>, NetworkError> {
+	unsafe { sys_tcp_stream_get_read_timeout(socket) }
 }
 
 #[inline(always)]
-pub fn get_write_timeout(handle: Handle) -> Result<Option<u64>, NetworkError> {
-	unsafe { sys_tcp_stream_get_write_timeout(handle) }
+pub fn get_write_timeout(socket: Socket) -> Result<Option<u64>, NetworkError> {
+	unsafe { sys_tcp_stream_get_write_timeout(socket) }
 }
 
 #[inline(always)]
-pub fn set_nodelay(_: Handle, mode: bool) -> Result<(), NetworkError> {
+pub fn set_nodelay(_: Socket, mode: bool) -> Result<(), NetworkError> {
 	// smoltcp does not support Nagle's algorithm
 	// => to enable Nagle's algorithm isn't possible
 	if mode {
@@ -100,23 +96,28 @@ pub fn set_nodelay(_: Handle, mode: bool) -> Result<(), NetworkError> {
 }
 
 #[inline(always)]
-pub fn nodelay(_: Handle) -> Result<bool, NetworkError> {
+pub fn nodelay(_: Socket) -> Result<bool, NetworkError> {
 	// smoltcp does not support Nagle's algorithm
 	// => return always true
 	Ok(true)
 }
 
 #[inline(always)]
-pub fn set_tll(handle: Handle, ttl: u32) -> Result<(), NetworkError> {
-	unsafe { sys_tcp_stream_set_tll(handle, ttl) }
+pub fn set_tll(socket: Socket, ttl: u32) -> Result<(), NetworkError> {
+	unsafe { sys_tcp_stream_set_tll(socket, ttl) }
 }
 
 #[inline(always)]
-pub fn get_tll(handle: Handle) -> Result<u32, NetworkError> {
-	unsafe { sys_tcp_stream_get_tll(handle) }
+pub fn get_tll(socket: Socket) -> Result<u32, NetworkError> {
+	unsafe { sys_tcp_stream_get_tll(socket) }
 }
 
 #[inline(always)]
-pub fn shutdown(handle: Handle, how: i32) -> Result<(), NetworkError> {
-	unsafe { sys_tcp_stream_shutdown(handle, how) }
+pub fn shutdown(socket: Socket, how: i32) -> Result<(), NetworkError> {
+	unsafe { sys_tcp_stream_shutdown(socket, how) }
+}
+
+#[inline(always)]
+pub fn set_non_blocking(socket: Socket, non_blocking: bool) -> Result<(), NetworkError> {
+	unsafe { sys_tcp_stream_set_non_blocking(socket, non_blocking) }
 }
